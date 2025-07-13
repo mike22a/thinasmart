@@ -1,3 +1,4 @@
+// Rename this file to App.jsx
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -5,22 +6,19 @@ import { getFirestore, collection, query, onSnapshot, doc, setDoc, getDocs, dele
 import { ShoppingCart, X, Plus, Minus, Loader2, User, LogOut, Settings, Edit, Trash2, Save, XCircle } from 'lucide-react';
 
 // Firebase configuration from environment variables
-// Vite automatically makes process.env.VITE_... available
-// For Netlify, these will be injected as process.env.REACT_APP_...
-// We'll use a fallback for local development if not set.
+// Vite automatically makes import.meta.env.VITE_... available
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || process.env.REACT_APP_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || process.env.REACT_APP_FIREBASE_APP_ID
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // The appId for Firestore paths will be the projectId
 const appId = firebaseConfig.projectId || 'default-app-id';
-// initialAuthToken is typically for server-side generated tokens, not directly from env for client-side
-const initialAuthToken = null; // Removed direct env access here, as it's not standard for client-side React apps
+const initialAuthToken = null; // This is typically for server-side generated tokens, not directly from env for client-side
 
 // Initialize Firebase App
 let app;
@@ -297,27 +295,35 @@ const UserManagement = ({ userRole, setLoading, setError }) => {
         if (!db || userRole !== 'super_admin') return;
 
         // Fetch user profiles (roles)
-        const userProfilesRef = collection(db, `artifacts/${appId}/users`);
-        const unsubscribe = onSnapshot(userProfilesRef, async (snapshot) => {
+        // We query the 'users' collection to get UIDs, then fetch their profile/data subdocuments
+        const usersCollectionRef = collection(db, `artifacts/${appId}/users`);
+        const unsubscribe = onSnapshot(usersCollectionRef, async (snapshot) => {
             const fetchedUsers = [];
             for (const docSnap of snapshot.docs) {
                 const userId = docSnap.id;
                 const profileDocRef = doc(db, `artifacts/${appId}/users/${userId}/profile/data`);
-                const profileSnap = await getDoc(profileDocRef);
-                fetchedUsers.push({
-                    uid: userId,
-                    email: docSnap.data().email || 'N/A', // Assuming email might be stored here or fetched from auth
-                    role: profileSnap.exists() ? profileSnap.data().role : 'user' // Default to 'user' if no role
-                });
+                try {
+                    const profileSnap = await getDoc(profileDocRef);
+                    fetchedUsers.push({
+                        uid: userId,
+                        // Get email from the profile data, or default to N/A
+                        email: profileSnap.exists() ? profileSnap.data().email : 'N/A',
+                        role: profileSnap.exists() ? profileSnap.data().role : 'user' // Default to 'user' if no role
+                    });
+                } catch (e) {
+                    console.warn(`Could not fetch profile for user ${userId}:`, e);
+                    // Still add user with default values if profile fetch fails
+                    fetchedUsers.push({ uid: userId, email: 'N/A (Profile Error)', role: 'user' });
+                }
             }
             setUsers(fetchedUsers);
         }, (err) => {
-            console.error("Error fetching users:", err);
-            setError("Failed to load users. Check permissions.");
+            console.error("Error fetching users collection:", err); // More specific error message
+            setError("Failed to load users. Check permissions and Super Admin role.");
         });
 
         return () => unsubscribe();
-    }, [db, userRole]);
+    }, [db, userRole]); // Dependency on db and userRole
 
     const handleUpdateRole = async (uid, newRole) => {
         setLoading(true);
@@ -883,45 +889,6 @@ const App = () => {
                     </div>
                 </div>
             )}
-
-            {/* Tailwind CSS CDN and custom styles are now in src/index.css */}
-            {/* The <style> tag below is for Canvas environment only, removed for Netlify build */}
-            {/* When deploying to Netlify, these styles will be bundled by Vite into index.css */}
-            {/* <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-                .font-inter {
-                    font-family: 'Inter', sans-serif;
-                }
-
-                .animate-slide-in-right {
-                    animation: slideInRight 0.3s ease-out forwards;
-                }
-
-                @keyframes slideInRight {
-                    from {
-                        transform: translateX(100%);
-                    }
-                    to {
-                        transform: translateX(0);
-                    }
-                }
-
-                .animate-fade-in {
-                    animation: fadeIn 0.3s ease-out forwards;
-                }
-
-                @keyframes fadeIn {
-                    from {
-                        opacity: 0;
-                        transform: scale(0.95);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: scale(1);
-                    }
-                }
-            `}</style> */}
         </div>
     );
 };
