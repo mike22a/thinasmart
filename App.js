@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInAnonymously, signInWithCustomToken } from 'firebase/auth'; // Added signInWithCustomToken
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, query, onSnapshot, doc, setDoc, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
 import { ShoppingCart, X, Plus, Minus, Loader2, User, LogOut, Settings, Edit, Trash2, Save, XCircle } from 'lucide-react';
 
-// Firebase configuration from environment variables for Netlify deployment
-// For Canvas environment, we use the global variables provided.
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-    apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-    authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.REACT_APP_FIREBASE_APP_ID
+// Firebase configuration from environment variables
+// Vite automatically makes process.env.VITE_... available
+// For Netlify, these will be injected as process.env.REACT_APP_...
+// We'll use a fallback for local development if not set.
+const firebaseConfig = {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || process.env.REACT_APP_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || process.env.REACT_APP_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID || process.env.REACT_APP_FIREBASE_APP_ID
 };
 
 // The appId for Firestore paths will be the projectId
-const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.REACT_APP_FIREBASE_PROJECT_ID || 'default-app-id');
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
+const appId = firebaseConfig.projectId || 'default-app-id';
+// initialAuthToken is typically for server-side generated tokens, not directly from env for client-side
+const initialAuthToken = null; // Removed direct env access here, as it's not standard for client-side React apps
 
 // Initialize Firebase App
 let app;
@@ -45,7 +47,7 @@ const sampleProducts = [
 ];
 
 // Function to initialize sample products in Firestore if the collection is empty
-const initializeProducts = async (dbInstance) => { // Removed userId parameter as appId is global
+const initializeProducts = async (dbInstance) => {
     if (!dbInstance) return;
 
     const productsRef = collection(dbInstance, `artifacts/${appId}/public/data/products`);
@@ -224,7 +226,7 @@ const ProductManagement = ({ products, setProducts, userRole, setLoading, setErr
                                     className="p-2 border border-gray-300 rounded-lg"
                                 >
                                     {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                                </select> {/* Removed extra '>' here */}
+                                </select>
                                 <input
                                     type="text"
                                     name="imageUrl"
@@ -882,8 +884,10 @@ const App = () => {
                 </div>
             )}
 
-            {/* Tailwind CSS CDN and custom styles */}
-            <style>{`
+            {/* Tailwind CSS CDN and custom styles are now in src/index.css */}
+            {/* The <style> tag below is for Canvas environment only, removed for Netlify build */}
+            {/* When deploying to Netlify, these styles will be bundled by Vite into index.css */}
+            {/* <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
                 .font-inter {
@@ -917,7 +921,7 @@ const App = () => {
                         transform: scale(1);
                     }
                 }
-            `}</style>
+            `}</style> */}
         </div>
     );
 };
