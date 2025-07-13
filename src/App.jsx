@@ -32,6 +32,8 @@ try {
 } catch (error) {
     console.error("Error initializing Firebase:", error);
     // Handle error gracefully, e.g., display a message to the user
+    // Note: In this global scope, we can't directly update React state.
+    // The useEffect below will handle the error state if `app` is null.
 }
 
 // Sample products (for initial setup if Firestore is empty)
@@ -438,10 +440,23 @@ const App = () => {
             }
             setIsAuthReady(true);
             setLoading(false); // Set loading to false once auth state is determined
+            console.log("Firebase Auth and initialization complete."); // Added log
         });
 
-        // Cleanup function for auth listener
-        return () => unsubscribeAuth();
+        // Fallback to ensure loading state resolves even if onAuthStateChanged is delayed
+        const loadingTimeout = setTimeout(() => {
+            if (loading && !isAuthReady) {
+                console.warn("Firebase initialization took longer than expected or encountered an silent error. Forcing loading state to false.");
+                setLoading(false);
+                setError(prevError => prevError || "App initialization timed out. Please check console for errors or refresh.");
+            }
+        }, 10000); // 10 seconds timeout
+
+        // Cleanup function for auth listener and timeout
+        return () => {
+            unsubscribeAuth();
+            clearTimeout(loadingTimeout);
+        };
     }, []);
 
     // Fetch products from Firestore
